@@ -78,15 +78,12 @@ export async function sendTx(
     };
   } catch (e) {
     if (e instanceof SendTransactionError) {
-      let ste = e as SendTransactionError;
-      console.log(await ste.getLogs(connection));
+      //console.log(e);
+      throw new Error()
     } else {
-      console.error(e);
+      //console.error(e);
     }
-    return {
-      error: e,
-      success: false,
-    };
+    throw new Error()
   }
 }
 

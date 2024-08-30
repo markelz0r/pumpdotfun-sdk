@@ -1,13 +1,6 @@
-import {
-  Commitment,
-  Connection,
-  Finality,
-  Keypair,
-  PublicKey,
-  Transaction,
-} from "@solana/web3.js";
-import { Program, Provider } from "@coral-xyz/anchor";
-import { GlobalAccount } from "./globalAccount";
+import {Commitment, Connection, Finality, Keypair, PublicKey, Transaction,} from "@solana/web3.js";
+import {Program, Provider} from "@coral-xyz/anchor";
+import {GlobalAccount} from "./globalAccount";
 import {
   CompleteEvent,
   CreateEvent,
@@ -19,27 +12,19 @@ import {
   TradeEvent,
   TransactionResult,
 } from "./types";
+import {toCompleteEvent, toCreateEvent, toSetParamsEvent, toTradeEvent,} from "./events";
+import {createAssociatedTokenAccountInstruction, getAccount, getAssociatedTokenAddress,} from "@solana/spl-token";
+import {BondingCurveAccount} from "./bondingCurveAccount";
+import {BN} from "bn.js";
 import {
-  toCompleteEvent,
-  toCreateEvent,
-  toSetParamsEvent,
-  toTradeEvent,
-} from "./events";
-import {
-  createAssociatedTokenAccountInstruction,
-  getAccount,
-  getAssociatedTokenAddress,
-} from "@solana/spl-token";
-import { BondingCurveAccount } from "./bondingCurveAccount";
-import { BN } from "bn.js";
-import {
-  DEFAULT_COMMITMENT,
-  DEFAULT_FINALITY,
   calculateWithSlippageBuy,
   calculateWithSlippageSell,
+  DEFAULT_COMMITMENT,
+  DEFAULT_FINALITY,
   sendTx,
 } from "./util";
-import { PumpFun, IDL } from "./IDL";
+import {IDL, PumpFun} from "./IDL";
+
 const PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const MPL_TOKEN_METADATA_PROGRAM_ID =
   "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
@@ -59,6 +44,44 @@ export class PumpFunSDK {
     this.connection = this.program.provider.connection;
   }
 
+  async makeCreateAndBuyTx(createTokenMetadata: CreateTokenMetadata, creator: Keypair, mint: Keypair, buyAmountSol: bigint, commitment: "processed" | "confirmed" | "finalized" | "recent" | "single" | "singleGossip" | "root" | "max", slippageBasisPoints: bigint) {
+    let tokenMetadata = await this.createTokenMetadata(createTokenMetadata);
+
+    let createTx = await this.getCreateInstructions(
+        creator.publicKey,
+        createTokenMetadata.name,
+        createTokenMetadata.symbol,
+        tokenMetadata.metadataUri,
+        mint
+    );
+
+    let newTx = new Transaction().add(createTx);
+
+    if (buyAmountSol > 0) {
+      const buyTx = await this.makeBuyTx(commitment, buyAmountSol, slippageBasisPoints, creator, mint);
+      newTx.add(buyTx);
+    }
+
+    return newTx;
+  }
+
+  async makeBuyTx(commitment: "processed" | "confirmed" | "finalized" | "recent" | "single" | "singleGossip" | "root" | "max", buyAmountSol: bigint, slippageBasisPoints: bigint, buyer: Keypair, mint: Keypair) {
+    const globalAccount = await this.getGlobalAccount(commitment);
+    const buyAmount = globalAccount.getInitialBuyPrice(buyAmountSol);
+    const buyAmountWithSlippage = calculateWithSlippageBuy(
+        buyAmountSol,
+        slippageBasisPoints
+    );
+
+    return await this.getBuyInstructions(
+        buyer.publicKey,
+        mint.publicKey,
+        globalAccount.feeRecipient,
+        buyAmount,
+        buyAmountWithSlippage
+    );
+  }
+
   async createAndBuy(
     creator: Keypair,
     mint: Keypair,
@@ -69,47 +92,17 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ): Promise<TransactionResult> {
-    let tokenMetadata = await this.createTokenMetadata(createTokenMetadata);
+    let newTx = await this.makeCreateAndBuyTx(createTokenMetadata, creator, mint, buyAmountSol, commitment, slippageBasisPoints);
 
-    let createTx = await this.getCreateInstructions(
-      creator.publicKey,
-      createTokenMetadata.name,
-      createTokenMetadata.symbol,
-      tokenMetadata.metadataUri,
-      mint
-    );
-
-    let newTx = new Transaction().add(createTx);
-
-    if (buyAmountSol > 0) {
-      const globalAccount = await this.getGlobalAccount(commitment);
-      const buyAmount = globalAccount.getInitialBuyPrice(buyAmountSol);
-      const buyAmountWithSlippage = calculateWithSlippageBuy(
-        buyAmountSol,
-        slippageBasisPoints
-      );
-
-      const buyTx = await this.getBuyInstructions(
+    return await sendTx(
+        this.connection,
+        newTx,
         creator.publicKey,
-        mint.publicKey,
-        globalAccount.feeRecipient,
-        buyAmount,
-        buyAmountWithSlippage
-      );
-
-      newTx.add(buyTx);
-    }
-
-    let createResults = await sendTx(
-      this.connection,
-      newTx,
-      creator.publicKey,
-      [creator, mint],
-      priorityFees,
-      commitment,
-      finality
+        [creator, mint],
+        priorityFees,
+        commitment,
+        finality
     );
-    return createResults;
   }
 
   async buy(
