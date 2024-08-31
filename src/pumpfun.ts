@@ -157,14 +157,13 @@ export class PumpFunSDK {
   }
 
   public async makeSellTx(seller: Keypair, mint: PublicKey, sellTokenAmount: bigint, slippageBasisPoints: bigint, commitment: "processed" | "confirmed" | "finalized" | "recent" | "single" | "singleGossip" | "root" | "max") {
-    let sellTx = await this.getSellInstructionsByTokenAmount(
+    return await this.getSellInstructionsByTokenAmount(
         seller.publicKey,
         mint,
         sellTokenAmount,
         slippageBasisPoints,
         commitment
     );
-    return sellTx;
   }
 
 //create token instructions
