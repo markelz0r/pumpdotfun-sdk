@@ -58,14 +58,14 @@ export class PumpFunSDK {
     let newTx = new Transaction().add(createTx);
 
     if (buyAmountSol > 0) {
-      const buyTx = await this.makeBuyTx(commitment, buyAmountSol, slippageBasisPoints, creator, mint);
+      const buyTx = await this.makeBuyTx(commitment, buyAmountSol, slippageBasisPoints, creator.publicKey, mint.publicKey);
       newTx.add(buyTx);
     }
 
     return newTx;
   }
 
-  async makeBuyTx(commitment: "processed" | "confirmed" | "finalized" | "recent" | "single" | "singleGossip" | "root" | "max", buyAmountSol: bigint, slippageBasisPoints: bigint, buyer: Keypair, mint: Keypair) {
+  async makeBuyTx(commitment: "processed" | "confirmed" | "finalized" | "recent" | "single" | "singleGossip" | "root" | "max", buyAmountSol: bigint, slippageBasisPoints: bigint, buyer: PublicKey, mint: PublicKey) {
     const globalAccount = await this.getGlobalAccount(commitment);
     const buyAmount = globalAccount.getInitialBuyPrice(buyAmountSol);
     const buyAmountWithSlippage = calculateWithSlippageBuy(
@@ -74,8 +74,8 @@ export class PumpFunSDK {
     );
 
     return await this.getBuyInstructions(
-        buyer.publicKey,
-        mint.publicKey,
+        buyer,
+        mint,
         globalAccount.feeRecipient,
         buyAmount,
         buyAmountWithSlippage
@@ -143,27 +143,31 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ): Promise<TransactionResult> {
-    let sellTx = await this.getSellInstructionsByTokenAmount(
-      seller.publicKey,
-      mint,
-      sellTokenAmount,
-      slippageBasisPoints,
-      commitment
-    );
+    let sellTx = await this.makeSellTx(seller, mint, sellTokenAmount, slippageBasisPoints, commitment);
 
-    let sellResults = await sendTx(
-      this.connection,
-      sellTx,
-      seller.publicKey,
-      [seller],
-      priorityFees,
-      commitment,
-      finality
+    return await sendTx(
+        this.connection,
+        sellTx,
+        seller.publicKey,
+        [seller],
+        priorityFees,
+        commitment,
+        finality
     );
-    return sellResults;
   }
 
-  //create token instructions
+  public async makeSellTx(seller: Keypair, mint: PublicKey, sellTokenAmount: bigint, slippageBasisPoints: bigint, commitment: "processed" | "confirmed" | "finalized" | "recent" | "single" | "singleGossip" | "root" | "max") {
+    let sellTx = await this.getSellInstructionsByTokenAmount(
+        seller.publicKey,
+        mint,
+        sellTokenAmount,
+        slippageBasisPoints,
+        commitment
+    );
+    return sellTx;
+  }
+
+//create token instructions
   async getCreateInstructions(
     creator: PublicKey,
     name: string,
