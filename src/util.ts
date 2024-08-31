@@ -1,4 +1,5 @@
 import {
+  BlockhashWithExpiryBlockHeight,
   Commitment,
   ComputeBudgetProgram,
   Connection,
@@ -36,9 +37,11 @@ export async function sendTx(
   payer: PublicKey,
   signers: Keypair[],
   priorityFees?: PriorityFee,
+  blockHash?: BlockhashWithExpiryBlockHeight,
+  skipPreflisht: boolean = false,
   commitment: Commitment = DEFAULT_COMMITMENT,
   finality: Finality = DEFAULT_FINALITY
-): Promise<TransactionResult> {
+) {
   let newTx = new Transaction();
 
   if (priorityFees) {
@@ -55,12 +58,12 @@ export async function sendTx(
 
   newTx.add(tx);
 
-  let versionedTx = await buildVersionedTx(connection, payer, newTx, commitment);
+  let versionedTx = await buildVersionedTx(connection, payer, newTx,blockHash, commitment);
   versionedTx.sign(signers);
 
   try {
     const sig = await connection.sendTransaction(versionedTx, {
-      skipPreflight: false,
+      skipPreflight: skipPreflisht,
     });
     console.log("sig:", `https://solscan.io/tx/${sig}`);
 
@@ -78,12 +81,12 @@ export async function sendTx(
     };
   } catch (e) {
     if (e instanceof SendTransactionError) {
-      //console.log(e);
-      throw new Error()
+      console.log(e);
+      //throw new Error()
     } else {
-      //console.error(e);
+      console.error(e);
     }
-    throw new Error()
+    //throw new Error()
   }
 }
 
@@ -91,14 +94,15 @@ export const buildVersionedTx = async (
   connection: Connection,
   payer: PublicKey,
   tx: Transaction,
+  blockHash?: BlockhashWithExpiryBlockHeight,
   commitment: Commitment = DEFAULT_COMMITMENT
 ): Promise<VersionedTransaction> => {
-  const blockHash = (await connection.getLatestBlockhash(commitment))
-    .blockhash;
+  if (!blockHash)
+    blockHash = (await connection.getLatestBlockhash(commitment))
 
   let messageV0 = new TransactionMessage({
     payerKey: payer,
-    recentBlockhash: blockHash,
+    recentBlockhash: blockHash.blockhash,
     instructions: tx.instructions,
   }).compileToV0Message();
 
