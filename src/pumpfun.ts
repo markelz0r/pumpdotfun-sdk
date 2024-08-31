@@ -50,11 +50,12 @@ export const DEFAULT_DECIMALS = 6;
 
 export class PumpFunSDK {
     public program: Program<PumpFun>;
-    public connection: Connection;
+    public connections: Connection[];
 
-    constructor(provider?: Provider) {
+    constructor(connections: Connection[], provider?: Provider) {
+        console.log(connections.length)
         this.program = new Program<PumpFun>(IDL as PumpFun, provider);
-        this.connection = this.program.provider.connection;
+        this.connections = connections;
     }
 
     async makeCreateAndBuyTx(createTokenMetadata: CreateTokenMetadata, creator: Keypair, mint: Keypair, buyAmountSol: bigint, commitment: "processed" | "confirmed" | "finalized" | "recent" | "single" | "singleGossip" | "root" | "max", slippageBasisPoints: bigint) {
@@ -117,17 +118,7 @@ export class PumpFunSDK {
     ): Promise<TransactionResult> {
         let newTx = await this.makeCreateAndBuyTx(createTokenMetadata, creator, mint, buyAmountSol, commitment, slippageBasisPoints);
 
-        return await sendTx(
-            this.connection,
-            newTx,
-            creator.publicKey,
-            [creator, mint],
-            priorityFees,
-            undefined,
-            false,
-            commitment,
-            finality
-        );
+        return await sendTx(this.connections, newTx, creator.publicKey, [creator, mint], priorityFees, undefined, false, commitment, finality);
     }
 
     async buy(
@@ -148,17 +139,7 @@ export class PumpFunSDK {
             commitment
         );
 
-        return await sendTx(
-            this.connection,
-            buyTx,
-            buyer.publicKey,
-            [buyer],
-            priorityFees,
-            blockHash,
-            false,
-            commitment,
-            finality
-        );
+        return await sendTx(this.connections, buyTx, buyer.publicKey, [buyer], priorityFees, blockHash, false, commitment, finality);
     }
 
     async buyFixed(
@@ -174,17 +155,7 @@ export class PumpFunSDK {
 
         let buyTx = await this.makeBuyTxFixedAmount(buyer.publicKey, amount, maxSolCost, mint, feeRecipient)
 
-        return await sendTx(
-            this.connection,
-            buyTx,
-            buyer.publicKey,
-            [buyer],
-            priorityFees,
-            blockHash,
-            true,
-            commitment,
-            finality
-        );
+        return await sendTx(this.connections, buyTx, buyer.publicKey, [buyer], priorityFees, blockHash, true, commitment, finality);
     }
 
     async sell(
@@ -200,7 +171,7 @@ export class PumpFunSDK {
         let sellTx = await this.makeSellTx(seller, mint, sellTokenAmount, slippageBasisPoints, commitment);
 
         return await sendTx(
-            this.connection,
+            this.connections,
             sellTx,
             seller.publicKey,
             [seller],
@@ -411,7 +382,7 @@ export class PumpFunSDK {
         mint: PublicKey,
         commitment: Commitment = DEFAULT_COMMITMENT
     ) {
-        const tokenAccount = await this.connection.getAccountInfo(
+        const tokenAccount = await this.connections[0].getAccountInfo(
             this.getBondingCurvePDA(mint),
             commitment
         );
@@ -427,7 +398,7 @@ export class PumpFunSDK {
             new PublicKey(PROGRAM_ID)
         );
 
-        const tokenAccount = await this.connection.getAccountInfo(
+        const tokenAccount = await this.connections[0].getAccountInfo(
             globalAccountPDA,
             commitment
         );
