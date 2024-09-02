@@ -61,14 +61,13 @@ export async function sendTx(
     let versionedTx = await buildVersionedTx(connections[0], payer, newTx, blockHash, commitment);
     versionedTx.sign(signers);
 
-    let sig;
     try {
         console.log(connections.length)
         let counter = 0;
         for (let connection of connections) {
             console.log(`RPC: ${counter}`);
             try {
-                sig = connection.sendTransaction(versionedTx, {
+               connection.sendTransaction(versionedTx, {
                     skipPreflight: skipPreflisht,
                 });
             }
