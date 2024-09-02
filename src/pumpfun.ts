@@ -143,18 +143,12 @@ export class PumpFunSDK {
     }
 
     async buyFixed(
+        buyTx: Transaction,
         buyer: Keypair,
-        mint: PublicKey,
-        amount: bigint,
-        maxSolCost: bigint,
-        feeRecipient: PublicKey,
         priorityFees?: PriorityFee,
         blockHash?: BlockhashWithExpiryBlockHeight,
-        commitment: Commitment = DEFAULT_COMMITMENT,
-        finality: Finality = DEFAULT_FINALITY) {
-
-        let buyTx = await this.makeBuyTxFixedAmount(buyer.publicKey, amount, maxSolCost, mint, feeRecipient)
-
+        commitment: Commitment = DEFAULT_COMMITMENT, finality: Finality = DEFAULT_FINALITY)
+    {
         return await sendTx(this.connections, buyTx, buyer.publicKey, [buyer], priorityFees, blockHash, true, commitment, finality);
     }
 
