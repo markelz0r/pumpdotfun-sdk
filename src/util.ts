@@ -67,28 +67,37 @@ export async function sendTx(
         let counter = 0;
         for (let connection of connections) {
             console.log(`RPC: ${counter}`);
-            sig = connection.sendTransaction(versionedTx, {
+             sig = connection.sendTransaction(versionedTx, {
                 skipPreflight: skipPreflisht,
             });
             counter++;
 
         }
 
-        const signature = await sig
-        console.log("sig:", `https://solscan.io/tx/${signature}`);
-
-        let txResult = await getTxDetails(connections[0], signature, commitment, finality);
-        if (!txResult) {
-            return {
-                success: false,
-                error: "Transaction failed",
-            };
+        const result: TransactionResult = {
+                success: true,
+                signature: undefined,
+                results: undefined,
+                error: undefined
         }
-        return {
-            success: true,
-            signature: signature,
-            results: txResult,
-        };
+
+        return result
+
+        // const signature = await sig
+        // console.log("sig:", `https://solscan.io/tx/${signature}`);
+        //
+        // let txResult = await getTxDetails(connections[0], signature, commitment, finality);
+        // if (!txResult) {
+        //     return {
+        //         success: false,
+        //         error: "Transaction failed",
+        //     };
+        // }
+        // return {
+        //     success: true,
+        //     signature: signature,
+        //     results: txResult,
+        // };
     } catch (e) {
         if (e instanceof SendTransactionError) {
             console.log(e);
@@ -96,9 +105,6 @@ export async function sendTx(
         } else {
             console.error(e);
         }
-        return {
-            success: false
-        };
     }
 }
 
