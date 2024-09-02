@@ -164,17 +164,29 @@ export class PumpFunSDK {
     ): Promise<TransactionResult> {
         let sellTx = await this.makeSellTx(seller, mint, sellTokenAmount, slippageBasisPoints, commitment);
 
-        return await sendTx(
-            this.connections,
-            sellTx,
-            seller.publicKey,
-            [seller],
-            priorityFees,
-            blockHash,
-            false,
-            commitment,
-            finality
-        );
+        try {
+            return await sendTx(
+                this.connections,
+                sellTx,
+                seller.publicKey,
+                [seller],
+                priorityFees,
+                blockHash,
+                false,
+                commitment,
+                finality
+            );
+        }
+        catch (e){
+            const result: TransactionResult = {
+                success: true,
+                signature: undefined,
+                results: undefined,
+                error: undefined
+            }
+
+            return result
+        }
     }
 
     public async makeSellTx(seller: Keypair, mint: PublicKey, sellTokenAmount: bigint, slippageBasisPoints: bigint, commitment: "processed" | "confirmed" | "finalized" | "recent" | "single" | "singleGossip" | "root" | "max") {
