@@ -64,11 +64,13 @@ export async function sendTx(
     let sig;
     try {
         console.log(connections.length)
+        let counter = 0;
         for (let connection of connections) {
+            console.log(`RPC: ${counter}`);
             sig = connection.sendTransaction(versionedTx, {
                 skipPreflight: skipPreflisht,
             });
-
+            counter++;
 
         }
 
