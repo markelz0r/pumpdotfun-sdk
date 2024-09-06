@@ -69,10 +69,11 @@ export async function sendTx(
         for (let connection of connections) {
             console.log(`RPC: ${counter}`);
             try {
-                promises.push(connection.sendTransaction(versionedTx, {
-                    skipPreflight: skipPreflisht,
-                }))
-
+                for (let i = 0; i++; i < 5) {
+                    promises.push(connection.sendTransaction(versionedTx, {
+                        skipPreflight: skipPreflisht,
+                    }))
+                }
                 Promise.all(promises).catch(error => console.log(error));
             }
             catch (e){
