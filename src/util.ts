@@ -61,9 +61,8 @@ export async function sendTx(
 
     let versionedTx = await buildVersionedTx(connections[0], payer, newTx, blockHash, commitment);
     versionedTx.sign(signers);
-    console.timeEnd("prepare-tx"+blockHash?.lastValidBlockHeight);
     try {
-        console.time("send-tx-"+blockHash?.lastValidBlockHeight)
+
         console.log(connections.length)
         let counter = 0;
         let promises: Promise<string>[] = []
@@ -81,7 +80,6 @@ export async function sendTx(
             }
             finally {
                 counter++;
-                console.timeEnd("send-tx"+blockHash?.lastValidBlockHeight)
             }
         }
 
